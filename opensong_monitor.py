@@ -170,6 +170,8 @@ def signal_handler(signal, frame):
 
 def main():
     opensong_cfg = OpenSongConfig()
+    opensong_cfg.host = os.getenv("OPENSONG_HOST", opensong_cfg.host)
+    opensong_cfg.port = os.getenv("OPENSONG_PORT", opensong_cfg.port)
 
     arg_parser = argparse.ArgumentParser(description='OpenSong networked monitor.',
                                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
