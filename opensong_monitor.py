@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python2
 
 import os
 import time
@@ -11,6 +11,7 @@ import argparse
 import xml.etree.ElementTree as ET
 import Queue
 import tempfile
+import logging
 
 
 class OpenSongConfig:
@@ -80,13 +81,13 @@ def osws_on_data(ws, data, data_type, complete):
             slides.put(data)
 
 def osws_on_error(ws, error):
-    print(error)
+    print("  Connection error: " % (error))
 
 def osws_on_close(ws):
-    print("### closed ###")
+    print("  Connection to OpenSong closed")
 
 def osws_on_open(ws):
-    print("### opened ###")
+    print("  Connected to OpenSong")
     ws.send("/ws/subscribe/presentation")
 
 def opensong_connect(opensong_cfg):
@@ -108,7 +109,7 @@ def run_os_websocket(*args):
         opensong_ws.run_forever()
 
         if not shutdown:
-            print("Waiting to connect to OpenSong ...")
+            print("Waiting to connect to OpenSong at %s ..." % (opensong_ws.url))
             time.sleep(5)
 
 def load_slide(slide_number):
@@ -188,6 +189,17 @@ def main():
         print "Aborting:", str(e)
         exit(0)
 
+    # Workaround for Websocket issue #400 Fix #342 Fix #341
+    _logger = logging.getLogger('websocket')
+    try:
+        from logging import NullHandler
+    except ImportError:
+        class NullHandler(logging.Handler):
+            def emit(self, record):
+                pass
+    _logger.addHandler(NullHandler())
+
+    # Register signal handler to be able to stop
     signal.signal(signal.SIGINT, signal_handler)
 
     # Slide retrieval and drawing thread
