@@ -5,9 +5,8 @@ import time
 import websocket
 import threading
 import signal
-import sys
 import argparse
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as Et
 import Queue
 import tempfile
 import logging
@@ -18,16 +17,20 @@ import pygame
 
 
 class OpenSongConfig:
-    host = 'localhost'
-    port = 8082
+    default_host = 'localhost'
+    default_port = 8082
+
+    def __init__(self):
+        self.host = os.getenv("OPENSONG_HOST", self.default_host)
+        self.port = os.getenv("OPENSONG_PORT", self.default_port)
 
 
 # Global variables
-screen_size    = (0,0)   # Placeholder to store screen size
-screen_surface = None    # Placeholder to store display framebuffer image
-opensong_ws    = None    # Placeholder for OpenSong websocket connection
-shutdown       = False
-slides         = Queue.Queue()
+screen_size = (0, 0)  # Placeholder to store screen size
+screen_surface = None  # Placeholder to store display framebuffer image
+opensong_ws = None  # Placeholder for OpenSong websocket connection
+shutdown = False
+slides = Queue.Queue()
 
 
 def init_screen():
@@ -59,54 +62,60 @@ def init_screen():
 
         pygame.mouse.set_visible(False)
     else:
-       raise Exception('No suitable framebuffer video driver found.')
+        raise Exception('No suitable framebuffer video driver found.')
 
-def osws_on_data(ws, data, data_type, complete):
+
+def osws_on_data(_ws, data, data_type, complete):
     if complete:
-        if data_type == 0x1: #websocket.ABNF.OPCODE_TEXT
+        if data_type == 0x1:  # websocket.ABNF.OPCODE_TEXT
             print(data)
             if data[:5] == '<?xml':
                 try:
-                    xml = ET.fromstring(data)
+                    xml = Et.fromstring(data)
                     if xml.tag == 'response' and xml.get('resource') == 'presentation':
                         pres = xml.find("presentation")
-                        #for child in pres:
+                        # for child in pres:
                         #    print "**", child.tag, child.attrib
                         if pres.get('running') == '1':
                             itemnumber = int(pres.find("slide").attrib["itemnumber"])
                             load_slide(itemnumber)
-                            ## Queue item number for retrieval by update_slides thread
-                            #slides.put(itemnumber)
-                    #else:
+                            # Queue item number for retrieval by update_slides thread
+                            # slides.put(itemnumber)
+                    # else:
                     #    print "** skip", xml, xml.get('resource')
                 except:
-                    print("Failed to parse message from OpenSong:", message)
+                    print("Failed to parse message from OpenSong:", data)
             else:
-                print "Not parsing:", message[:5]
-        elif data_type == 0x2: #websocket.ABNF.OPCODE_BINARY
+                print "Not parsing:", data
+        elif data_type == 0x2:  # websocket.ABNF.OPCODE_BINARY
             print "Received image"
             slides.put(data)
 
-def osws_on_error(ws, error):
-    print("  Connection error: " % (error))
 
-def osws_on_close(ws):
+def osws_on_error(_ws, error):
+    print("  Connection error: " % error)
+
+
+def osws_on_close(_ws):
     print("  Connection to OpenSong closed")
+
 
 def osws_on_open(ws):
     print("  Connected to OpenSong")
     ws.send("/ws/subscribe/presentation")
 
+
 def opensong_connect(opensong_cfg):
     global opensong_ws
 
-    #websocket.enableTrace(True)
+    # websocket.enableTrace(True)
     url = "ws://%s:%d/ws" % (opensong_cfg.host, opensong_cfg.port)
     opensong_ws = websocket.WebSocketApp(url,
-                                         on_open    = osws_on_open,
-                                         on_data    = osws_on_data,
-                                         on_error   = osws_on_error,
-                                         on_close   = osws_on_close)
+                                         on_open=osws_on_open,
+                                         on_data=osws_on_data,
+                                         on_error=osws_on_error,
+                                         on_close=osws_on_close)
+
 
 def run_os_websocket(*args):
     global opensong_ws
@@ -116,17 +125,19 @@ def run_os_websocket(*args):
         opensong_ws.run_forever()
 
         if not shutdown:
-            print("Waiting to connect to OpenSong at %s ..." % (opensong_ws.url))
+            print("Waiting to connect to OpenSong at %s ..." % opensong_ws.url)
             time.sleep(5)
+
 
 def load_slide(slide_number):
     if slide_number:
-        print("Loading slide number %d" % (slide_number))
+        print("Loading slide number %d" % slide_number)
         (w, h) = screen_size
-        url = "/presentation/slide/%d/image" % (slide_number)
-        #url = "/presentation/slide/%d/image/width:%d/height:%d" % (slide_number, w, h)
-        #url = "/presentation/slide/%d/preview" % (slide_number)
+        url = "/presentation/slide/%d/image" % slide_number
+        # url = "/presentation/slide/%d/image/width:%d/height:%d" % (slide_number, w, h)
+        # url = "/presentation/slide/%d/preview" % (slide_number)
         opensong_ws.send(url)
+
 
 def update_slides(*args):
     global opensong_ws
@@ -146,11 +157,13 @@ def update_slides(*args):
                 finally:
                     os.remove(filename)
 
+
 def show_image(img):
     img_rect = img.get_rect()
     pygame.transform.scale(img, screen_size, screen_surface)
-    #screen.blit(img, img_rect)
+    # screen.blit(img, img_rect)
     pygame.display.flip()
+
 
 def show_sample_images():
     img = pygame.image.load('fixtures/color_bars_1121.jpg').convert()
@@ -165,6 +178,7 @@ def show_sample_images():
     show_image(img)
     time.sleep(3)
 
+
 def signal_handler(signal, frame):
     global shutdown
     global opensong_ws
@@ -175,10 +189,9 @@ def signal_handler(signal, frame):
     slides.put(None)
     opensong_ws.close()
 
+
 def main():
     opensong_cfg = OpenSongConfig()
-    opensong_cfg.host = os.getenv("OPENSONG_HOST", opensong_cfg.host)
-    opensong_cfg.port = os.getenv("OPENSONG_PORT", opensong_cfg.port)
 
     arg_parser = argparse.ArgumentParser(description='OpenSong networked monitor.',
                                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -219,7 +232,7 @@ def main():
     ws_thread = threading.Thread(name="run_os_websocket", target=run_os_websocket)
     ws_thread.start()
 
-    #show_sample_images()
+    # show_sample_images()
 
     # Wait for Ctrl-C to exit
     signal.pause()

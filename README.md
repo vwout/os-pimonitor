@@ -1,6 +1,6 @@
 # os-pimonitor
 
-os-pimonitor is a display solution to show the [OpenSong](http://opensong.org) presentation image on a monitor using a Raspberry Pi - or as a matter of fact, any hardware platform that runs Python and offers a framebuffer interface. It shows the slide that is currently presented full-screen on the monitor. It can be used to easily setup an preview monitor or a presentation screen at location where installing a VGA or HDMI cable is not practicle. The os-pimonitor uses the internal WebSocket server of OpenSong and only requires bandwidth when a slide change occurs. This makes this solution work very well over WiFi.
+os-pimonitor is a display solution to show the [OpenSong](http://opensong.org) presentation image on a monitor using a Raspberry Pi - or as a matter of fact, any hardware platform that runs Python and offers a framebuffer interface. It shows the slide that is currently presented full-screen on the monitor. It can be used to easily setup an preview monitor or a presentation screen at location where installing a VGA or HDMI cable is not viable. The os-pimonitor uses the internal WebSocket server of OpenSong and only requires bandwidth when a slide change occurs. This makes this solution work very well over WiFi.
 
 The OpenSong PI Monitor is a readonly client for the [OpenSong API](http://opensong.org/pages/api.html). It can not be used as a remote control for OpenSong.
 
