@@ -4,7 +4,6 @@ import os
 import time
 import websocket
 import threading
-import signal
 import argparse
 import xml.etree.ElementTree as Et
 import Queue
@@ -164,9 +163,9 @@ class OpenSongMonitor:
         self.show_image(img)
         time.sleep(3)
 
-    def signal_handler(self, _signal, _frame):
-        print("Received SIGINT, shutting down...")
+    def close(self):
         self.shutdown = True
+
         # Insert dummy slide to let the update_slides thread finish
         self.slides.put(None)
         self.websocket.close()
@@ -181,9 +180,6 @@ class OpenSongMonitor:
 
         self._apply_websocket_logging_workaround()
 
-        # Register signal handler to be able to stop
-        signal.signal(signal.SIGINT, self.signal_handler)
-
         # Slide retrieval and drawing thread
         slide_thread = threading.Thread(name="update_slides", target=self.update_slides)
         slide_thread.start()
@@ -192,13 +188,21 @@ class OpenSongMonitor:
         ws_thread = threading.Thread(name="run_os_websocket", target=self.run_os_websocket)
         ws_thread.start()
 
-        # Wait for Ctrl-C to exit
-        try:
-            signal.pause()
-        except:
-            # Workaround for Windows - pause method is not available on Windows
-            pass
+        pygame.init()
+        while not self.shutdown:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.close()
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        self.close()
+                    if event.mod == pygame.KMOD_LCTRL and event.key == pygame.K_c:
+                        self.close()
 
+            if not self.shutdown:
+                time.sleep(0.1)
+
+        pygame.quit()
         ws_thread.join()
         slide_thread.join()
 
