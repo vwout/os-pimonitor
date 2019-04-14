@@ -19,9 +19,12 @@ The features are:
 
 ### Requirements
 
-  - An installation of OpenSong
-  - Enabled automation API in OpenSong (to enable, goto the generic settings, on the system tab)
-  - The files in the repository, running on e.g. a Raspberry PI.
+  - An installation of OpenSong running on a PC, with enabled automation API in OpenSong (to enable, goto the generic settings, on the system tab)
+  - The files in the repository, running on e.g. a Raspberry PI, with:
+    - Python 2 and the packages as listed in `requirements.txt`. Install them easily via `pip`:
+    ```
+    $ pip install -r requirements.txt
+    ```
 
 ### Usage
 
