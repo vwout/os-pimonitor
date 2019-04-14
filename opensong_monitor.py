@@ -2,7 +2,6 @@
 
 import os
 import time
-import pygame
 import websocket
 import threading
 import signal
@@ -12,6 +11,10 @@ import xml.etree.ElementTree as ET
 import Queue
 import tempfile
 import logging
+
+# Suppress pygame welcome message
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
+import pygame
 
 
 class OpenSongConfig:
@@ -31,23 +34,27 @@ def init_screen():
     global screen_size
     global screen_surface
 
-    drivers = ('directfb', 'fbcon', 'svgalib')
+    # Display drivers, first empty entry will attempt autodection
+    drivers = ('', 'directfb', 'fbcon', 'svgalib', 'windib')
 
     initialized = False
     for driver in drivers:
         if not os.getenv('SDL_VIDEODRIVER'):
-            os.putenv('SDL_VIDEODRIVER', driver)
+            if driver:
+                os.putenv('SDL_VIDEODRIVER', driver)
 
         try:
             pygame.display.init()
+            print("Using video driver %s%s" % (pygame.display.get_driver(), " (autodetected)" if not driver else ""))
             initialized = True
-            break
         except pygame.error:
             pass
 
+        if initialized:
+            break
+
     if initialized:
-        screen_size    = (pygame.display.Info().current_w,
-                          pygame.display.Info().current_h)
+        screen_size = (pygame.display.Info().current_w, pygame.display.Info().current_h)
         screen_surface = pygame.display.set_mode(screen_size, pygame.FULLSCREEN)
 
         pygame.mouse.set_visible(False)
