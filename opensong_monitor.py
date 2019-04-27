@@ -35,9 +35,10 @@ class OpenSongMonitor:
         self.shutdown = False
         self.slides = Queue.Queue()
         self.current_slide = None
+        self.ws_was_connected = False
 
     def init_screen(self):
-        # Display drivers, first empty entry will attempt autodection
+        # Display drivers, first empty entry will attempt autodetection
         drivers = ('', 'directfb', 'fbcon', 'svgalib', 'windib')
 
         initialized = False
@@ -98,16 +99,16 @@ class OpenSongMonitor:
                 print("Received image")
                 self.slides.put(data)
 
-    @staticmethod
-    def osws_on_error(_ws, error):
-        print("Websocket: Connection error: %s" % error)
+    def osws_on_error(self, _ws, error):
+        if self.ws_was_connected:
+            print("Websocket: Connection error: %s" % error)
 
-    @staticmethod
-    def osws_on_close(_ws):
-        print("Websocket: Connection to OpenSong closed")
+    def osws_on_close(self, _ws):
+        if self.ws_was_connected:
+            print("Websocket: Connection to OpenSong closed")
 
-    @staticmethod
-    def osws_on_open(ws):
+    def osws_on_open(self, ws):
+        self.ws_was_connected = True
         print("Websocket: Connected to OpenSong")
         ws.send("/ws/subscribe/presentation")
 
@@ -115,12 +116,14 @@ class OpenSongMonitor:
         # websocket.enableTrace(True)
         url = "ws://%s:%d/ws" % (self.config.host, self.config.port)
         self.websocket = websocket.WebSocketApp(url,
-                                                on_open=self.osws_on_open,
+                                                on_open=partial(self.osws_on_open),
                                                 on_data=partial(self.osws_on_data),
-                                                on_error=self.osws_on_error,
-                                                on_close=self.osws_on_close)
+                                                on_error=partial(self.osws_on_error),
+                                                on_close=partial(self.osws_on_close))
 
     def run_os_websocket(self, *args):
+        first_attempt = True
+
         while not self.shutdown:
             try:
                 self.websocket.run_forever()
@@ -128,12 +131,17 @@ class OpenSongMonitor:
                 if isinstance(e, SystemExit):
                     self.shutdown = True
                 else:
-                    print("Websocket: Connection caused a failure: %s" % str(e))
+                    if self.ws_was_connected or first_attempt:
+                        if not isinstance(e, TypeError):
+                            print("Websocket: Connection caused a failure: %s" % str(e), e)
                     if self.websocket:
                         self.websocket.close()
 
             if not self.shutdown:
-                self.status("Waiting to (re)connect to OpenSong", "at %s ..." % self.websocket.url, clear_slide=True)
+                if self.ws_was_connected or first_attempt:
+                    self.status("Waiting to (re)connect to OpenSong", "at %s ..." % self.websocket.url, clear_slide=True)
+                    first_attempt = False
+                self.ws_was_connected = False
                 time.sleep(5)
 
     def status(self, text, details="", clear_slide=False):
@@ -225,6 +233,9 @@ class OpenSongMonitor:
 
         self._apply_websocket_logging_workaround()
 
+        pygame.init()
+        self.status("OpenSong Monitor")
+
         # Slide retrieval and drawing thread
         slide_thread = threading.Thread(name="update_slides", target=self.update_slides)
         slide_thread.start()
@@ -232,10 +243,6 @@ class OpenSongMonitor:
         # OpenSong connection thread
         ws_thread = threading.Thread(name="run_os_websocket", target=self.run_os_websocket)
         ws_thread.start()
-
-        pygame.init()
-
-        self.status("OpenSong Monitor")
 
         while not self.shutdown:
             for event in pygame.event.get():
@@ -251,9 +258,9 @@ class OpenSongMonitor:
                 pygame.display.update()
                 time.sleep(0.1)
 
-        pygame.quit()
         ws_thread.join()
         slide_thread.join()
+        pygame.quit()
 
     @staticmethod
     def _apply_websocket_logging_workaround():
