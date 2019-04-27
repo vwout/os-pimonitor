@@ -85,27 +85,30 @@ class OpenSongMonitor:
                                 self.load_slide(itemnumber)
                                 # Queue item number for retrieval by update_slides thread
                                 # slides.put(itemnumber)
+                            else:
+                                self.status("No running presentation", clear_slide=True)
                         # else:
                         #    print("** skip", xml, xml.get('resource'))
                     except:
                         print("Failed to parse message from OpenSong:", data)
                 else:
-                    print("Not parsing:", data)
+                    if not data == "OK":
+                        print("Not parsing: {}".format(data))
             elif data_type == 0x2:  # websocket.ABNF.OPCODE_BINARY
                 print("Received image")
                 self.slides.put(data)
 
     @staticmethod
     def osws_on_error(_ws, error):
-        print("  Connection error: %s" % error)
+        print("Websocket: Connection error: %s" % error)
 
     @staticmethod
     def osws_on_close(_ws):
-        print("  Connection to OpenSong closed")
+        print("Websocket: Connection to OpenSong closed")
 
     @staticmethod
     def osws_on_open(ws):
-        print("  Connected to OpenSong")
+        print("Websocket: Connected to OpenSong")
         ws.send("/ws/subscribe/presentation")
 
     def opensong_connect(self):
@@ -125,19 +128,21 @@ class OpenSongMonitor:
                 if isinstance(e, SystemExit):
                     self.shutdown = True
                 else:
-                    print("Websocket connection caused a failure: %s" % str(e))
+                    print("Websocket: Connection caused a failure: %s" % str(e))
+                    if self.websocket:
+                        self.websocket.close()
 
             if not self.shutdown:
-                self.status("Waiting to (re)connect to OpenSong", "at %s ..." % self.websocket.url)
+                self.status("Waiting to (re)connect to OpenSong", "at %s ..." % self.websocket.url, clear_slide=True)
                 time.sleep(5)
 
-    def status(self, text, details=""):
+    def status(self, text, details="", clear_slide=False):
         font = pygame.font.Font(pygame.font.get_default_font(), 40)
         surface = font.render(text, True, (255, 255, 255))
         rect = surface.get_rect()
         rect.center = ((self.screen_size[0]/2), (self.screen_size[1]/2))
 
-        self.show_current_slide()
+        self.show_current_slide(clear=clear_slide)
 
         # background = pygame.Rect((0, 0), self.screen_size)
         # background.center = ((self.screen_size[0]/2), (self.screen_size[1]/2))
@@ -174,9 +179,11 @@ class OpenSongMonitor:
                     finally:
                         os.remove(filename)
 
-    def show_current_slide(self, img=None):
+    def show_current_slide(self, img=None, clear=False):
         if img:
             self.current_slide = img
+        elif clear:
+            self.current_slide = None
 
         if self.current_slide:
             print("update new slide")
@@ -205,7 +212,8 @@ class OpenSongMonitor:
 
         # Insert dummy slide to let the update_slides thread finish
         self.slides.put(None)
-        self.websocket.close()
+        if self.websocket:
+            self.websocket.close()
 
     def run_monitor(self):
         try:
