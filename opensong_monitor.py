@@ -9,6 +9,7 @@ import xml.etree.ElementTree as Et
 import Queue
 import tempfile
 import logging
+from functools import partial
 
 # Suppress pygame welcome message
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
@@ -32,6 +33,7 @@ class OpenSongMonitor:
         self.websocket = None  # Placeholder for OpenSong websocket connection
         self.shutdown = False
         self.slides = Queue.Queue()
+        self.current_slide = None
 
     def init_screen(self):
         # Display drivers, first empty entry will attempt autodection
@@ -54,8 +56,8 @@ class OpenSongMonitor:
                 break
 
         if initialized:
-            self.screen_size = (pygame.display.Info().current_w, pygame.display.Info().current_h)
-            self.screen_surface = pygame.display.set_mode(self.screen_size, pygame.FULLSCREEN)
+            self.screen_size = (pygame.display.Info().current_w/2, pygame.display.Info().current_h/2)
+            self.screen_surface = pygame.display.set_mode(self.screen_size)  # , flags=pygame.FULLSCREEN
             pygame.display.set_caption('OpenSong Monitor')
             pygame.mouse.set_visible(False)
         else:
@@ -71,29 +73,32 @@ class OpenSongMonitor:
                         if xml.tag == 'response' and xml.get('resource') == 'presentation':
                             pres = xml.find("presentation")
                             # for child in pres:
-                            #    print "**", child.tag, child.attrib
+                            #    print("**", child.tag, child.attrib)
                             if pres.get('running') == '1':
                                 itemnumber = int(pres.find("slide").attrib["itemnumber"])
                                 self.load_slide(itemnumber)
                                 # Queue item number for retrieval by update_slides thread
                                 # slides.put(itemnumber)
                         # else:
-                        #    print "** skip", xml, xml.get('resource')
+                        #    print("** skip", xml, xml.get('resource'))
                     except:
                         print("Failed to parse message from OpenSong:", data)
                 else:
-                    print "Not parsing:", data
+                    print("Not parsing:", data)
             elif data_type == 0x2:  # websocket.ABNF.OPCODE_BINARY
-                print "Received image"
+                print("Received image")
                 self.slides.put(data)
 
-    def osws_on_error(self, _ws, error):
-        print("  Connection error: " % error)
+    @staticmethod
+    def osws_on_error(_ws, error):
+        print("  Connection error: %s" % error)
 
-    def osws_on_close(self, _ws):
+    @staticmethod
+    def osws_on_close(_ws):
         print("  Connection to OpenSong closed")
 
-    def osws_on_open(self, ws):
+    @staticmethod
+    def osws_on_open(ws):
         print("  Connected to OpenSong")
         ws.send("/ws/subscribe/presentation")
 
@@ -102,7 +107,7 @@ class OpenSongMonitor:
         url = "ws://%s:%d/ws" % (self.config.host, self.config.port)
         self.websocket = websocket.WebSocketApp(url,
                                                 on_open=self.osws_on_open,
-                                                on_data=self.osws_on_data,
+                                                on_data=partial(self.osws_on_data),
                                                 on_error=self.osws_on_error,
                                                 on_close=self.osws_on_close)
 
@@ -111,11 +116,17 @@ class OpenSongMonitor:
             try:
                 self.websocket.run_forever()
             except Exception as e:
-                print("Websocket connection caused a failure: %s" % str(e))
+                if isinstance(e, SystemExit):
+                    self.shutdown = True
+                else:
+                    print("Websocket connection caused a failure: %s" % str(e))
 
             if not self.shutdown:
-                print("Waiting to (re)connect to OpenSong at %s ..." % self.websocket.url)
+                self.status("Waiting to (re)connect to OpenSong", "at %s ..." % self.websocket.url)
                 time.sleep(5)
+
+    def status(self, text, details=""):
+        print("Status: %s (%s)" % (text, details))
 
     def load_slide(self, slide_number):
         if slide_number:
@@ -140,27 +151,34 @@ class OpenSongMonitor:
                         os.write(fd, slide)
                         os.close(fd)
                         img = pygame.image.load(filename).convert()
-                        self.show_image(img)
+                        self.show_current_slide(img)
                     finally:
                         os.remove(filename)
 
-    def show_image(self, img):
-        # img_rect = img.get_rect()
-        pygame.transform.scale(img, self.screen_size, self.screen_surface)
-        # screen.blit(img, img_rect)
-        pygame.display.flip()
+    def show_current_slide(self, img=None):
+        if img:
+            self.current_slide = img
+
+        if self.current_slide:
+            print("update new slide")
+            # img_rect = img.get_rect()
+            pygame.transform.scale(self.current_slide, self.screen_size, self.screen_surface)
+            # screen.blit(img, img_rect)
+            pygame.display.flip()
+        else:
+            self.screen_surface.fill((0, 0, 0))
 
     def show_sample_images(self):
         img = pygame.image.load('fixtures/color_bars_1121.jpg').convert()
-        self.show_image(img)
+        self.show_current_slide(img)
         time.sleep(3)
 
         img = pygame.image.load('fixtures/6291.png').convert()
-        self.show_image(img)
+        self.show_current_slide(img)
         time.sleep(3)
 
         img = pygame.image.load('fixtures/resolution.jpg').convert()
-        self.show_image(img)
+        self.show_current_slide(img)
         time.sleep(3)
 
     def close(self):
@@ -175,7 +193,7 @@ class OpenSongMonitor:
             self.init_screen()
             self.opensong_connect()
         except Exception as e:
-            print "Aborting, initialisation failed:", str(e)
+            print("Aborting, initialisation failed:", str(e))
             exit(0)
 
         self._apply_websocket_logging_workaround()
@@ -189,6 +207,9 @@ class OpenSongMonitor:
         ws_thread.start()
 
         pygame.init()
+
+        self.status("OpenSong Monitor")
+
         while not self.shutdown:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -200,6 +221,7 @@ class OpenSongMonitor:
                         self.close()
 
             if not self.shutdown:
+                pygame.display.update()
                 time.sleep(0.1)
 
         pygame.quit()
