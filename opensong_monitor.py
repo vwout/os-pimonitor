@@ -126,6 +126,19 @@ class OpenSongMonitor:
                 time.sleep(5)
 
     def status(self, text, details=""):
+        font = pygame.font.Font(pygame.font.get_default_font(), 40)
+        surface = font.render(text, True, (255, 255, 255))
+        rect = surface.get_rect()
+        rect.center = ((self.screen_size[0]/2), (self.screen_size[1]/2))
+
+        self.show_current_slide()
+
+        # background = pygame.Rect((0, 0), self.screen_size)
+        # background.center = ((self.screen_size[0]/2), (self.screen_size[1]/2))
+        # pygame.draw.rect(self.screen_surface, (90, 90, 90, 128), background)
+        self.screen_surface.blit(surface, rect)
+
+        pygame.display.update()
         print("Status: %s (%s)" % (text, details))
 
     def load_slide(self, slide_number):
