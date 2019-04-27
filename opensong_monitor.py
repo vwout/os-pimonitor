@@ -23,6 +23,7 @@ class OpenSongConfig:
     def __init__(self):
         self.host = os.getenv("OPENSONG_HOST", self.default_host)
         self.port = os.getenv("OPENSONG_PORT", self.default_port)
+        self.fullscreen = True
 
 
 class OpenSongMonitor:
@@ -56,8 +57,13 @@ class OpenSongMonitor:
                 break
 
         if initialized:
-            self.screen_size = (pygame.display.Info().current_w/2, pygame.display.Info().current_h/2)
-            self.screen_surface = pygame.display.set_mode(self.screen_size)  # , flags=pygame.FULLSCREEN
+            if self.config.fullscreen:
+                self.screen_size = (pygame.display.Info().current_w, pygame.display.Info().current_h)
+                self.screen_surface = pygame.display.set_mode(self.screen_size, flags=pygame.FULLSCREEN)
+            else:
+                self.screen_size = (pygame.display.Info().current_w/2, pygame.display.Info().current_h/2)
+                self.screen_surface = pygame.display.set_mode(self.screen_size)
+
             pygame.display.set_caption('OpenSong Monitor')
             pygame.mouse.set_visible(False)
         else:
@@ -255,10 +261,20 @@ class OpenSongMonitor:
 
 
 def main():
+    def str2bool(v):
+        if v.lower() in ('yes', 'true', 't', 'y', '1'):
+            return True
+        elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+            return False
+        else:
+            raise argparse.ArgumentTypeError('Boolean value expected.')
+
     arg_parser = argparse.ArgumentParser(description='OpenSong networked monitor.',
                                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     arg_parser.add_argument("--host", default=OpenSongConfig.default_host, help='Address of the OpenSong application')
-    arg_parser.add_argument("--port", default=OpenSongConfig.default_port, type=int, help='Port of the OpenSong API server')
+    arg_parser.add_argument("--port", default=OpenSongConfig.default_port, type=int,
+                            help='Port of the OpenSong API server')
+    arg_parser.add_argument("--fullscreen", default=True, type=str2bool, nargs='?', help='Run in fullscreen mode')
     args = arg_parser.parse_args()
 
     monitor = OpenSongMonitor()
@@ -267,6 +283,7 @@ def main():
         monitor.config.host = args.host
     if args.port:
         monitor.config.port = args.port
+    monitor.config.fullscreen = args.fullscreen is True
 
     monitor.run_monitor()
 
