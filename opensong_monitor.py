@@ -228,8 +228,8 @@ class OpenSongMonitor:
             self.init_screen()
             self.opensong_connect()
         except Exception as e:
-            print("Aborting, initialisation failed:", str(e))
-            exit(0)
+            print("Aborting, initialisation failed: %s" % str(e))
+            exit(1)
 
         self._apply_websocket_logging_workaround()
 
