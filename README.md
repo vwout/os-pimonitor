@@ -28,11 +28,28 @@ The features are:
 
 ### Usage
 
-Change the members of the class OpenSongConfig to match the settings of the computer running OpenSong:
+The opensong_monitor script takes the following command line arguments:
+````
+usage: opensong_monitor.py [-h] [--host HOST] [--port PORT]
+                           [--fullscreen [FULLSCREEN]]
 
-    class OpenSongConfig:
-        host = 'localhost'
-        port = 8082
+OpenSong networked monitor.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --host HOST           Address of the OpenSong application (default:
+                        localhost)
+  --port PORT           Port of the OpenSong API server (default: 8082)
+  --fullscreen [FULLSCREEN]
+                        Run in fullscreen mode (default: True)
+````
+
+To configure the Opensong networked monitor, specify the hostname of the computer that runs Opensong optionally the port via the command line.
+Alternatively, the hostname and port can also be specified by means of environment variables:
+````
+export OPENSONG_HOST=<ip-of-opensong-pc>
+export OPENSONG_PORT=<port-of-opensong-api>
+````
 
 Run the script, e.g. using
 
