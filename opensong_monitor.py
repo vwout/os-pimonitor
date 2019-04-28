@@ -49,7 +49,9 @@ class OpenSongMonitor:
 
             try:
                 pygame.display.init()
+                pygame.font.init()
                 print("Using video driver %s%s" % (pygame.display.get_driver(), " (autodetected)" if not driver else ""))
+
                 initialized = True
             except pygame.error:
                 pass
@@ -233,7 +235,6 @@ class OpenSongMonitor:
 
         self._apply_websocket_logging_workaround()
 
-        pygame.init()
         self.status("OpenSong Monitor")
 
         # Slide retrieval and drawing thread
