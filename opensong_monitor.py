@@ -9,7 +9,6 @@ import xml.etree.ElementTree as Et
 import Queue
 import tempfile
 import logging
-from functools import partial
 
 # Suppress pygame welcome message
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
@@ -118,10 +117,10 @@ class OpenSongMonitor:
         # websocket.enableTrace(True)
         url = "ws://%s:%d/ws" % (self.config.host, self.config.port)
         self.websocket = websocket.WebSocketApp(url,
-                                                on_open=partial(self.osws_on_open),
-                                                on_data=partial(self.osws_on_data),
-                                                on_error=partial(self.osws_on_error),
-                                                on_close=partial(self.osws_on_close))
+                                                on_open=osws_on_open,
+                                                on_data=osws_on_data,
+                                                on_error=osws_on_error,
+                                                on_close=osws_on_close)
 
     def run_os_websocket(self, *args):
         first_attempt = True
@@ -134,10 +133,10 @@ class OpenSongMonitor:
                     self.shutdown = True
                 else:
                     if self.ws_was_connected or first_attempt:
-                        if not isinstance(e, TypeError):
-                            print("Websocket: Connection caused a failure: %s" % str(e), e)
-                    if self.websocket:
-                        self.websocket.close()
+                        print("Websocket: Connection caused a failure: %s" % str(e), e)
+            finally:
+                if self.websocket:
+                    self.websocket.close()
 
             if not self.shutdown:
                 if self.ws_was_connected or first_attempt:
@@ -276,7 +275,32 @@ class OpenSongMonitor:
         _logger.addHandler(NullHandler())
 
 
+monitor = None
+
+
+def osws_on_data(ws, data, data_type, complete):
+    global monitor
+    monitor.osws_on_data(ws, data, data_type, complete)
+
+
+def osws_on_error(ws, error):
+    global monitor
+    monitor.osws_on_error(ws, error)
+
+
+def osws_on_close(ws):
+    global monitor
+    monitor.osws_on_close(ws)
+
+
+def osws_on_open(ws):
+    global monitor
+    monitor.osws_on_open(ws)
+
+
 def main():
+    global monitor
+
     def str2bool(v):
         if v.lower() in ('yes', 'true', 't', 'y', '1'):
             return True
