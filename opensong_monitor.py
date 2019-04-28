@@ -294,9 +294,9 @@ def main():
 
     monitor = OpenSongMonitor()
 
-    if args.host:
+    if args.host and args.host is not OpenSongConfig.default_host:
         monitor.config.host = args.host
-    if args.port:
+    if args.port and args.port is not OpenSongConfig.default_port:
         monitor.config.port = args.port
     monitor.config.fullscreen = args.fullscreen is True
 
