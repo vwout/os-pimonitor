@@ -60,7 +60,7 @@ class OpenSongMonitor:
         if initialized:
             if self.config.fullscreen:
                 self.screen_size = (pygame.display.Info().current_w, pygame.display.Info().current_h)
-                self.screen_surface = pygame.display.set_mode(self.screen_size, flags=pygame.FULLSCREEN)
+                self.screen_surface = pygame.display.set_mode(self.screen_size, pygame.FULLSCREEN)
             else:
                 self.screen_size = (pygame.display.Info().current_w/2, pygame.display.Info().current_h/2)
                 self.screen_surface = pygame.display.set_mode(self.screen_size)
