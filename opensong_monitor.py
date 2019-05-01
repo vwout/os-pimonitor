@@ -73,7 +73,7 @@ class OpenSongMonitor:
 
     def osws_on_data(self, _ws, data, data_type, complete):
         if complete:
-            if data_type == 0x1:  # websocket.ABNF.OPCODE_TEXT
+            if data_type == websocket.ABNF.OPCODE_TEXT:
                 print(data)
                 if data[:5] == '<?xml':
                     try:
@@ -96,7 +96,7 @@ class OpenSongMonitor:
                 else:
                     if not data == "OK":
                         print("Not parsing: {}".format(data))
-            elif data_type == 0x2:  # websocket.ABNF.OPCODE_BINARY
+            elif data_type == websocket.ABNF.OPCODE_BINARY:
                 print("Received image")
                 self.slides.put(data)
 
