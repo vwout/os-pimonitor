@@ -115,6 +115,7 @@ class OpenSongMonitor:
 
     def opensong_connect(self):
         # websocket.enableTrace(True)
+        websocket.setdefaulttimeout(10.0)
         url = "ws://%s:%d/ws" % (self.config.host, self.config.port)
         self.websocket = websocket.WebSocketApp(url,
                                                 on_open=osws_on_open,
@@ -127,6 +128,12 @@ class OpenSongMonitor:
 
         while not self.shutdown:
             try:
+                # Reset keep_running flag for compatibility with old
+                # websocket-client package versions
+                self.websocket.keep_running = True
+
+                # Syntax once ping/pong is supported by OpenSong
+                # self.websocket.run_forever(ping_interval=7, ping_timeout=3)
                 self.websocket.run_forever()
             except Exception as e:
                 if isinstance(e, SystemExit):
