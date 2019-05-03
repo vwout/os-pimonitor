@@ -111,7 +111,12 @@ class OpenSongMonitor:
     def osws_on_open(self, ws):
         self.ws_was_connected = True
         print("Websocket: Connected to OpenSong")
-        ws.send("/ws/subscribe/presentation")
+
+        # Perform OpenSong subscription delayed
+        threading.Timer(1.0, osws_subscribe).start()
+
+    def opensong_subscribe(self):
+         self.websocket.send("/ws/subscribe/presentation")
 
     def opensong_connect(self):
         # websocket.enableTrace(True)
@@ -303,6 +308,11 @@ def osws_on_close(ws):
 def osws_on_open(ws):
     global monitor
     monitor.osws_on_open(ws)
+
+
+def osws_subscribe():
+    global monitor
+    monitor.opensong_subscribe()
 
 
 def main():
